@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font: 16px Arial;  
+}
+
+
+.autocomplete {
+  position: relative;
+  display: inline-block;
+}
+
+input {
+  border: 1px solid transparent;
+  background-color: #f1f1f1;
+  padding: 10px;
+  font-size: 16px;
+}
+
+input[type=text] {
+  background-color: #f1f1f1;
+  width: 70%;
+}
+
+select {
+
+  border: 1px solid transparent;
+  background-color: #f1f1f1;
+  padding: 10px;
+  font-size: 16px;
+  width: 7.5%;
+}
+
+
+input[type=submit] {
+  background-color: DodgerBlue;
+  color: #fff;
+  cursor: pointer;
+}
+button {
+
+  border: 1px solid transparent;
+  padding: 10px;
+  font-size: 16px;
+  
+  background-color: DodgerBlue;
+  color: #fff;
+  cursor: pointer;
+}
+
+.autocomplete-items {
+  position: absolute;
+  border: 1px solid #d4d4d4;
+  border-bottom: none;
+  border-top: none;
+  z-index: 99;
+  
+  top: 100%;
+  left: 0;
+  right: 0;
+}
+
+.autocomplete-items div {
+  padding: 10px;
+  cursor: pointer;
+  background-color: #fff; 
+  border-bottom: 1px solid #d4d4d4; 
+}
+
+
+.autocomplete-items div:hover {
+  background-color: #e9e9e9; 
+}
+
+
+.autocomplete-active {
+  background-color: DodgerBlue !important; 
+  color: #ffffff; 
+}
+</style>
+</head>     
+<body class="p-3">
+    <div>
+        <form autocomplete="off">
+            <div class="autocomplete" style="width:300px;">
+                <input type="text" id="account" placeholder="Cuenta" />
+            </div>
+            
+            <select name="" id="type">
+                <option value="a+">A+</option>
+                <option value="a-">A-</option>
+                <option value="p+">P+</option>
+                <option value="p-">P-</option>
+                <option value="rp+">RP+</option>
+                <option value="rp-">RP-</option>
+                <option value="rn+">RN+</option>
+                <option value="rn-">RN-</option>
+                <option value="pn">PN</option>
+                <option value="rega+">Reg A+</option>
+                <option value="rega-">Reg A-</option>
+                <option value="regp+">Reg P+</option>
+                <option value="regp-">Reg P-</option>
+                <option value="date">Fecha</option>
+            </select>
+            <input type="text" id="valor" placeholder="$1.000" style="width: 10%;" />
+            <input type="submit" value="Agregar" />
+        </form>
+    </div>
+    <br>
+    <div>
+     <button onclick="newDay()">Nuevo día</button>   
+    </div>
+    <br>
+    <div id="tables">
+        <table id="table1" class="table w-50">
+            <tr class="table-dark">
+                <th>Detalle</th>
+                <th>Debe</th>
+                <th>Haber</th>
+            </tr>
+        </table>
+    </div>
+    <div>
+      <button class="btn btn-success">Mayorizar</button>
+      <div id="mayores">
+
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.4.1/jspdf.debug.js"></script>
+<script>
+  class Operacion {
+    constructor(detalle,tipo,lado,monto) {
+      this.detalle = detalle;
+      this.tipo = tipo;
+      this.lado = lado;
+      this.monto = monto;
+    }
+  }
+  let operaciones = [];
+var actualTable = 1;
+function autocomplete(inp, arr) {
+
+  var currentFocus;
+  
+  inp.addEventListener("input", function(e) {
+      var a, b, i, val = this.value;
+      
+      closeAllLists();
+      if (!val) { return false;}
+      currentFocus = -1;
+      
+      a = document.createElement("DIV");
+      a.setAttribute("id", this.id + "autocomplete-list");
+      a.setAttribute("class", "autocomplete-items");
+      
+      this.parentNode.appendChild(a);
+      
+      for (i = 0; i < arr.length; i++) {
+        
+        if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+          b = document.createElement("DIV");
+          b.innerHTML = "<strong>" + arr[i].substr(0, val.length) + "</strong>";
+          b.innerHTML += arr[i].substr(val.length);
+          b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
+          b.addEventListener("click", function(e) {
+              let val = this.getElementsByTagName("input")[0].value;
+              inp.value = val;
+              
+              let activo = ["Títulos públicos","Acciones","Valores a depositar","Caja","Anticipo proveedores","Socio cuenta aporte ","Deudores varios","Documentos a cobrar","Materias primas","Rodados","Productos elaborados","Maquinarias","Banco nación c/c","Instalaciones","Alquileres a cobrar","Fondo fijo","Deudores morosos","Deudores en gestión","Títulos públicos","Mercaderías","Patentes","Alquileres pagados x adelantado","Seguros pagados x adelantado","Intereses pagados x adelantado","Plazo Fijo", "Seguros a cobrar", "Intereses a cobrar","Moneda extranjera", "Dividendos a cobrar"];
+              let pasivo = ["Obligaciones a pagar","Proveedores","Cargas sociales a pagar","Acreedores hipotecarios","Impuestos a pagar","Acreedores prendarios","Sueldos a pagar","Deudores x ventas","Anticipo mercaderías","Cheque dif a pagar","Sueldos a pagar","Acreedores hipotecarios","Clientes cobrados x adelantado", "Seguros a pagar", "Intereses a pagar","Alquileres cobrados x adelantado","Seguros cobrados x adelantado","Intereses cobrados x adelantado", "Plazo fijo", "Dividendos a pagar"];
+              let rp = ["Alquileres ganados","Ventas","Intereses positivos", "Seguros ganados", "Resultado inversión","Dividendos ganados"];
+              let rn = ["CMV","Gastos generales","Sueldos y jornales","Alquileres negativos","Descuentos cedidos","Intereses negativos","Gastos financieros","Alquileres perdidos", "Seguros perdidos", "Dividendos perdidos"];
+              let pn = ["Capital"];
+              let rega = ["Intereses positivos a devengar","Alquileres positivos a devengar", "Seguros positivos a devengar"];
+              let regp = ["Intereses negativos a devengar","Alquileres negativos a devengar", "Seguros negativos a devengar"];
+              
+              let type = document.getElementById("type");
+              if (activo.indexOf(val) > -1) type.value="a+";
+              if (pasivo.indexOf(val) > -1) type.value="p+";
+              if (rp.indexOf(val) > -1) type.value="rp+";
+              if (rn.indexOf(val) > -1) type.value="rn+";
+              if (pn.indexOf(val) > -1) type.value="pn";
+              if (rega.indexOf(val) > -1) type.value="rega+";
+              if (regp.indexOf(val) > -1) type.value="regp+";
+              
+              
+        
+              closeAllLists();
+          });
+          a.appendChild(b);
+        }
+      }
+  });
+  inp.addEventListener("keydown", function(e) {
+      var x = document.getElementById(this.id + "autocomplete-list");
+      if (x) x = x.getElementsByTagName("div");
+      if (e.keyCode == 40) {
+        currentFocus++;
+        addActive(x);
+      } else if (e.keyCode == 38) { 
+        currentFocus--;
+        addActive(x);
+      } else if (e.keyCode == 13) {
+        e.preventDefault();
+        if (currentFocus > -1) {
+          if (x) x[currentFocus].click();
+        }
+      }
+  });
+  function addActive(x) {
+    if (!x) return false;
+    removeActive(x);
+    if (currentFocus >= x.length) currentFocus = 0;
+    if (currentFocus < 0) currentFocus = (x.length - 1);
+    x[currentFocus].classList.add("autocomplete-active");
+  }
+  function removeActive(x) {
+    for (var i = 0; i < x.length; i++) {
+      x[i].classList.remove("autocomplete-active");
+    }
+  }
+  function closeAllLists(elmnt) {
+    var x = document.getElementsByClassName("autocomplete-items");
+    for (var i = 0; i < x.length; i++) {
+      if (elmnt != x[i] && elmnt != inp) {
+        x[i].parentNode.removeChild(x[i]);
+      }
+    }
+  }
+  document.addEventListener("click", function (e) {
+      closeAllLists(e.target);
+  });
+}
+var cuentas = ["Títulos públicos","Acciones","Valores a depositar","Caja","Anticipo proveedores","Socio cuenta aporte ","Deudores varios","Documentos a cobrar","Materias primas","Rodados","Productos elaborados","Maquinarias","Banco nación c/c","Instalaciones","Alquileres a cobrar","Fondo fijo","Deudores morosos","Deudores en gestión","Títulos públicos","Mercaderías","Patentes","Alquileres pagados x adelantado","Seguros pagados x adelantado","Intereses pagados x adelantado","Plazo Fijo", "Seguros a cobrar", "Intereses a cobrar","Moneda extranjera", "Dividendos a cobrar","Obligaciones a pagar","Proveedores","Cargas sociales a pagar","Acreedores hipotecarios","Impuestos a pagar","Acreedores prendarios","Sueldos a pagar","Deudores x ventas","Anticipo mercaderías","Cheque dif a pagar","Sueldos a pagar","Acreedores hipotecarios","Clientes cobrados x adelantado", "Seguros a pagar", "Intereses a pagar","Alquileres cobrados x adelantado","Seguros cobrados x adelantado","Intereses cobrados x adelantado", "Plazo fijo", "Dividendos a pagar","Alquileres ganados","Ventas","Intereses positivos", "Seguros ganados", "Resultado inversión","Dividendos ganados","CMV","Gastos generales","Sueldos y jornales","Alquileres negativos","Descuentos cedidos","Intereses negativos","Gastos financieros","Alquileres perdidos", "Seguros perdidos", "Dividendos perdidos","Capital","Intereses positivos a devengar","Alquileres positivos a devengar", "Seguros positivos a devengar","Intereses negativos a devengar","Alquileres negativos a devengar", "Seguros negativos a devengar"];
+
+autocomplete(document.getElementById("account"), cuentas);
+
+document.getElementsByTagName("form")[0].addEventListener("submit", function(e) {
+    e.preventDefault();
+    let cuenta = document.getElementById("account").value;
+    let tipo = document.getElementById("type").value;
+    let valor = document.getElementById("valor").value;
+    if (tipo == "date") {
+      let table = document.getElementById("table"+actualTable);
+      let row = document.createElement("tr");
+      let col1 = document.createElement("td");
+      col1.innerHTML = cuenta;
+      row.appendChild(col1);
+      table.appendChild(row);
+      e.target.reset();
+    } else {
+      let dh = (["a+","p-","rp-","rn+","rega-","regp+"].indexOf(tipo) > -1 ? "D" : "H");
+    console.log(cuenta,tipo,valor,dh);
+      operaciones.push(new Operacion(cuenta,tipo,dh,valor));
+    if (dh == "D") {
+        let table = document.getElementById("table"+actualTable);
+        let row = document.createElement("tr");
+        let col1 = document.createElement("td");
+        let col2 = document.createElement("td");
+        let col3 = document.createElement("td");
+        col1.innerHTML=`${cuenta} (${tipo.toUpperCase()})`;
+        col2.innerHTML=valor;
+        row.appendChild(col1);
+        row.appendChild(col2);
+        row.appendChild(col3);
+        table.appendChild(row);
+        e.target.reset();
+    } else {
+        let table = document.getElementById("table"+actualTable);
+        let row = document.createElement("tr");
+        let col1 = document.createElement("td");
+        let col2 = document.createElement("td");
+        let col3 = document.createElement("td");
+        col1.innerHTML=`${cuenta} (${tipo.toUpperCase()})`;
+        col3.innerHTML=valor;
+        row.appendChild(col1);
+        row.appendChild(col2);
+        row.appendChild(col3);
+        table.appendChild(row);
+        e.target.reset();
+
+    }
+    }
+    
+});
+function newDay() {
+    let tr = document.createElement("tr");
+    let td = document.createElement("td");
+    td.colSpan=3;
+    td.style.height="10px";
+    td.style.borderBottom="1px solid black";
+    let table = document.getElementById("table"+actualTable);
+    tr.appendChild(td)
+    table.appendChild(tr)
+}
+function save() {
+  let el = document.getElementById("tables");
+  console.log(window.jspdf);
+  let pdf = new window.jsPDF("p","pt","a4");
+  pdf.fromHTML(`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font: 16px Arial;  
+}
+</style>
+</head>
+<body>
+  ${el.innerHTML}
+</body>
+</html>`, function () {
+    pdf.save("test.pdf");
+  })
+}
+
+function mayorCuenta(cuenta) {
+  let table = document.createElement("table");
+  table.className="table table-hover mt-3 w-25";
+  let thead = document.createElement("thead");
+  let thr1 = document.createElement("tr");
+  let thr2 = document.createElement("tr");
+  thr1.classList=["table-dark"];
+  thr2.classList=["text-center"];
+  let thr1th = document.createElement("th");
+  let thr2th1 = document.createElement("th");
+  let thr2th2 = document.createElement("th");
+  thr1th.classList="text-center";
+  thr1th.scope="col";
+  thr1th.colSpan="2";
+  thr1th.innerText=cuenta;
+  thr2th1.classList=["w-50"];
+  thr2th1.scope="col";
+  thr2th1.innerText="Debe";
+  thr2th2.classList=["w-50"];
+  thr2th2.scope="col";
+  thr2th2.innerText="Haber";
+
+  thr1.appendChild(thr1th);
+  thr2.appendChild(thr2th1);
+  thr2.appendChild(thr2th2);
+  thead.appendChild(thr1);
+  thead.appendChild(thr2);
+
+  let tbody = document.createElement("tbody");
+  let debe = 0;
+  let haber = 0;
+  let filtered = operaciones.filter(el => el.detalle == cuenta);
+  filtered.forEach(el => {
+    let tbrn = document.createElement("tr");
+    tbrn.classList=["text-center"]
+    console.log(el);
+    console.log(el.tipo);
+    if (el.lado == "D") {
+      let td = document.createElement("td");
+      td.innerText = el.monto;
+      debe+=parseFloat(el.monto.split(".").join("").split(",").join(".").split("$").join(""));
+      td.colSpan="1";
+      let td2 = document.createElement("td");
+      td2.colSpan="1";
+      tbrn.appendChild(td);
+      tbrn.appendChild(td2)
+    } else {
+      let td = document.createElement("td");
+      td.innerText = el.monto;
+      let td2 = document.createElement("td");
+      haber+=parseFloat(el.monto.split(".").join("").split(",").join(".").split("$").join(""))
+      td.colSpan="1";
+      td2.colSpan="1";
+      tbrn.appendChild(td2);
+      tbrn.appendChild(td)
+    }
+    tbody.appendChild(tbrn);
+  })
+  let tbtot = document.createElement("tr");
+  tbtot.classList=["text-center"];
+
+  let diff = debe-haber;
+  if (diff > 0) {
+    let tdtot1 = document.createElement("th");
+    let tdtot2 = document.createElement("th");
+    let txt = "";
+    let txt1 = diff.toString().split(".");
+    txt1[0]=txt1[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    txt = "$"+txt1.join(",");
+
+    tdtot1.innerText=txt;
+    tbtot.appendChild(tdtot1);
+    tbtot.appendChild(tdtot2);
+    
+  } else if (diff < 0) {
+    diff=0-diff;
+    let tdtot1 = document.createElement("th");
+    let tdtot2 = document.createElement("th");
+    let txt = "";
+    let txt1 = diff.toString().split(".");
+    txt1[0]=txt1[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    txt = "$"+txt1.join(",");
+
+    tdtot2.innerText=txt;
+    tbtot.appendChild(tdtot1);
+    tbtot.appendChild(tdtot2);
+
+  } else {
+    let tdtot1 = document.createElement("th");
+    let tdtot2 = document.createElement("th");
+    
+    tdtot1.innerText="$0";
+    tdtot2.innerText="$0";
+    tbtot.appendChild(tdtot1);
+    tbtot.appendChild(tdtot2);
+  }
+  tbody.appendChild(tbtot);
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  document.getElementById("mayores").appendChild(table);
+
+  /*
+  <table class="table table-hover w-50">
+  <thead>
+    <tr class="table-dark">
+      <th class="text-center" scope="col" colspan="2">Banco Galicia c/c</th>
+    </tr>
+    <tr class="text-center">
+      <th scope="col" class="w-50">D</th>
+      <th scope="col" class="w-50">H</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Mark</td>
+      <td>Otto</td>
+    </tr>
+    <tr>
+      <td>Jacob</td>
+      <td>Thornton</td>
+    </tr>
+    <tr>
+      <td>Larry</td>
+      <td>@twitter</td>
+    </tr>
+  </tbody>
+</table>
+  */
+}
+
+function mayorizar() {
+  let detalles = operaciones.map(el => el.detalle);
+  let cuentas = [...new Set(detalles)];
+  cuentas.forEach(cuenta => mayorCuenta(cuenta));
+
+}
+</script>
+
+</body>
+</html>
